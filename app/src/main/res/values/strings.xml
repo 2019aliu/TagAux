@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">TagAux</string>
+    <string name="title">Tag Locator Application</string>
+    <string name="locationFiller">Getting your location…</string>
+</resources>
