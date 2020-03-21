@@ -25,6 +25,9 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.Locale;
 
@@ -32,7 +35,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "TagAuxActivity";
 
-//    private TextView mLocationText;
+    // Database objects
+    private DatabaseReference mDatabase;
 
     private FusedLocationProviderClient mFusedLocationClient;
 
@@ -48,25 +52,18 @@ public class MainActivity extends AppCompatActivity {
     private boolean isContinue = false;
     private boolean isGPS = false;
 
-//    private FusedLocationProviderClient fusedLocationClient;
-//    private double wayLatitude = 0.0, wayLongitude = 0.0;
-//    private LocationRequest locationRequest;
-//    private LocationCallback locationCallback;
-//    private StringBuilder stringBuilder;
-//
-//    private boolean isContinue = false;
-//    private boolean isGPS = false;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-//        mLocationText = (TextView) findViewById(R.id.locationText);
+        // Database
+//        FirebaseApp.initializeApp(this);
+        mDatabase = FirebaseDatabase.getInstance().getReference("test2");
+        final DatabaseReference mUserItems = mDatabase.child("testUser");
+
         this.txtContinueLocation = (TextView) findViewById(R.id.txtContinueLocation);
         this.btnContinueLocation = (Button) findViewById(R.id.btnContinueLocation);
-        this.txtLocation = (TextView) findViewById(R.id.txtLocation);
-        this.btnLocation = (Button) findViewById(R.id.btnLocation);
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
@@ -75,12 +72,9 @@ public class MainActivity extends AppCompatActivity {
         locationRequest.setInterval(10 * 1000); // 10 seconds
         locationRequest.setFastestInterval(5 * 1000); // 5 seconds
 
-        new GpsUtils(this).turnGPSOn(new GpsUtils.onGpsListener() {
-            @Override
-            public void gpsStatus(boolean isGPSEnable) {
-                // turn on GPS
-                isGPS = isGPSEnable;
-            }
+        new GpsUtils(this).turnGPSOn(isGPSEnable -> {
+            // turn on GPS
+            isGPS = isGPSEnable;
         });
 
         locationCallback = new LocationCallback() {
@@ -96,10 +90,12 @@ public class MainActivity extends AppCompatActivity {
                         if (!isContinue) {
                             txtLocation.setText(String.format(Locale.US, "Latitude: %s\nLongitude: %s", wayLatitude, wayLongitude));
                         } else {
+                            stringBuilder.append("Latitude: ");
                             stringBuilder.append(wayLatitude);
-                            stringBuilder.append("-");
+                            stringBuilder.append("\nLongitude: ");
                             stringBuilder.append(wayLongitude);
                             stringBuilder.append("\n\n");
+                            mUserItems.setValue(String.format("(%s, %s)", wayLatitude, wayLongitude));
                             txtContinueLocation.setText(stringBuilder.toString());
                         }
                         if (!isContinue && mFusedLocationClient != null) {
@@ -109,16 +105,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
-
-        btnLocation.setOnClickListener(v -> {
-
-            if (!isGPS) {
-                Toast.makeText(this, "Please turn on GPS", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            isContinue = false;
-            getLocation();
-        });
 
         btnContinueLocation.setOnClickListener(v -> {
             if (!isGPS) {
@@ -136,21 +122,20 @@ public class MainActivity extends AppCompatActivity {
                 && ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
                     AppConstants.LOCATION_REQUEST);
-
         } else {
-            if (isContinue) {
+//            if (isContinue) {
                 mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-            } else {
-                mFusedLocationClient.getLastLocation().addOnSuccessListener(MainActivity.this, location -> {
-                    if (location != null) {
-                        wayLatitude = location.getLatitude();
-                        wayLongitude = location.getLongitude();
-                        txtLocation.setText(String.format(Locale.US, "Latitude: %s\nLongitude: %s", wayLatitude, wayLongitude));
-                    } else {
-                        mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-                    }
-                });
-            }
+//            } else {
+//                mFusedLocationClient.getLastLocation().addOnSuccessListener(MainActivity.this, location -> {
+//                    if (location != null) {
+//                        wayLatitude = location.getLatitude();
+//                        wayLongitude = location.getLongitude();
+////                        txtLocation.setText(String.format(Locale.US, "Latitude: %s\nLongitude: %s", wayLatitude, wayLongitude));
+//                    } else {
+//                        mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
+//                    }
+//                });
+//            }
         }
     }
 
@@ -163,20 +148,20 @@ public class MainActivity extends AppCompatActivity {
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-                    if (isContinue) {
+//
+//                    if (isContinue) {
                         mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-                    } else {
-                        mFusedLocationClient.getLastLocation().addOnSuccessListener(MainActivity.this, location -> {
-                            if (location != null) {
-                                wayLatitude = location.getLatitude();
-                                wayLongitude = location.getLongitude();
-                                txtLocation.setText(String.format(Locale.US, "Latitude: %s\nLongitude: %s", wayLatitude, wayLongitude));
-                            } else {
-                                mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-                            }
-                        });
-                    }
+//                    } else {
+//                        mFusedLocationClient.getLastLocation().addOnSuccessListener(MainActivity.this, location -> {
+//                            if (location != null) {
+//                                wayLatitude = location.getLatitude();
+//                                wayLongitude = location.getLongitude();
+////                                txtLocation.setText(String.format(Locale.US, "Latitude: %s\nLongitude: %s", wayLatitude, wayLongitude));
+//                            } else {
+//                                mFusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
+//                            }
+//                        });
+//                    }
                 } else {
                     Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
                 }
