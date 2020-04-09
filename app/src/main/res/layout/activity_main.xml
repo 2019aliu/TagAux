@@ -4,53 +4,46 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     tools:context=".MainActivity">
 
-<!--    <LinearLayout-->
-<!--        android:layout_width="0dp"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:layout_margin="8dp"-->
-<!--        android:layout_weight="1"-->
-<!--        android:orientation="vertical">-->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        style="?android:attr/buttonBarStyle">
 
-<!--        <Button-->
-<!--            android:id="@+id/btnLocation"-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:background="@color/colorPrimary"-->
-<!--            android:paddingEnd="16dp"-->
-<!--            android:paddingStart="16dp"-->
-<!--            android:text="One time location"-->
-<!--            android:textAllCaps="false"-->
-<!--            android:textColor="#ffffff" />-->
+        <Button
+            android:id="@+id/buttonFlash"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/flash"
+            style="?android:attr/buttonBarButtonStyle"/>
 
-<!--        <TextView-->
-<!--            android:id="@+id/txtLocation"-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:layout_margin="8dp"-->
-<!--            android:gravity="center"-->
-<!--            android:textColor="#000" />-->
+        <Button
+            android:id="@+id/buttonVibrate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/vibrate"
+            style="?android:attr/buttonBarButtonStyle"/>
 
-<!--    </LinearLayout>-->
+    </LinearLayout>
 
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:layout_height="0dp"
         android:layout_margin="8dp"
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <Button
-            android:id="@+id/btnContinueLocation"
+        <TextView
+            android:id="@+id/txtWifiBT"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@color/colorPrimary"
-            android:paddingEnd="16dp"
-            android:paddingStart="16dp"
-            android:text="Continuous Location"
-            android:textAllCaps="false"
-            android:textColor="#ffffff" />
+            android:layout_margin="8dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginLeft="16dp"
+            android:gravity="center"
+            android:textColor="#000" />
 
         <TextView
             android:id="@+id/txtContinueLocation"
@@ -58,6 +51,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="8dp"
             android:layout_marginStart="16dp"
+            android:layout_marginLeft="16dp"
             android:gravity="center"
             android:textColor="#000" />
 

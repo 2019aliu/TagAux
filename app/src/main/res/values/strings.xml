@@ -2,4 +2,6 @@
     <string name="app_name">TagAux</string>
     <string name="title">Tag Locator Application</string>
     <string name="locationFiller">Getting your location…</string>
+    <string name="flash">Flash</string>
+    <string name="vibrate">Vibrate</string>
 </resources>
