@@ -4,8 +4,13 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.Camera;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraManager;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
@@ -15,6 +20,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
@@ -23,6 +30,11 @@ import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.nearby.Nearby;
+import com.google.android.gms.nearby.messages.BleSignal;
+import com.google.android.gms.nearby.messages.Distance;
+import com.google.android.gms.nearby.messages.Message;
+import com.google.android.gms.nearby.messages.MessageListener;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
@@ -52,6 +64,12 @@ public class MainActivity extends AppCompatActivity {
     private TextView txtBTWifiInfo;
     private Button mFlashButton;
     private Button mVibrateButton;
+    private CameraManager mCameraManager;
+    private String mCameraId;
+
+    // Connection vars
+    private MessageListener mMessageListener;
+    private Message mMessage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -127,7 +145,137 @@ public class MainActivity extends AppCompatActivity {
         isContinue = true;
         stringBuilder = new StringBuilder();
         getLocation();
+
+        mMessageListener = new MessageListener() {
+            @Override
+            public void onFound(Message message) {
+                Log.d(TAG, "Found message: " + new String(message.getContent()));
+            }
+
+            @Override
+            public void onLost(Message message) {
+                Log.d(TAG, "Lost sight of message: " + new String(message.getContent()));
+            }
+        };
+
+        mMessage = new Message("Hello World from Tag Aux".getBytes());
+
+//        // to subscribe for messages
+//        mMessageListener = new MessageListener() {
+//            @Override
+//            public void onFound(Message message) {
+//                Log.d(TAG, "Found message: " + new String(message.getContent()));
+//            }
+//
+//            @Override
+//            public void onLost(Message message) {
+//                Log.d(TAG, "Lost message: " + new String(message.getContent()));
+//            }
+//
+//            @Override
+//            public void onBleSignalChanged(final Message message, final BleSignal bleSignal) {
+//                Log.d(TAG, "Message: " + message + " has new BLE signal information: " + bleSignal);
+//            }
+//
+//            @Override
+//            public void onDistanceChanged(final Message message, final Distance distance) {
+//                Log.d(TAG, "Distanced changed, message: " + message + " , new distance: " + distance);
+//            }
+//        };
+//
+//        mMessage = new Message("Hello World from TAG Aux".getBytes());
     }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        Nearby.getMessagesClient(this).publish(mMessage);
+        Nearby.getMessagesClient(this).subscribe(mMessageListener);
+    }
+
+    @Override
+    public void onStop() {
+        Nearby.getMessagesClient(this).unpublish(mMessage);
+        Nearby.getMessagesClient(this).unsubscribe(mMessageListener);
+        super.onStop();
+    }
+
+    private void publish(String message) {
+        Log.i(TAG, "Publishing message: " + message);
+        mMessage = new Message(message.getBytes());
+        Nearby.getMessagesClient(this).publish(mMessage);
+    }
+
+    private void unpublish() {
+        Log.i(TAG, "Unpublishing.");
+        if (mMessage != null) {
+            Nearby.getMessagesClient(this).unpublish(mMessage);
+            mMessage= null;
+        }
+    }
+
+    // Subscribe to receive messages.
+    private void subscribe() {
+        Log.i(TAG, "Subscribing.");
+        Nearby.getMessagesClient(this).subscribe(mMessageListener);
+    }
+
+    private void unsubscribe() {
+        Log.i(TAG, "Unsubscribing.");
+        Nearby.getMessagesClient(this).unsubscribe(mMessageListener);
+    }
+
+//    /*
+//    Connection helper methods
+//     */
+//
+//    private void publish(String message) {
+//        Log.i(TAG, "Publishing message: " + message);
+//        mMessage = new Message(message.getBytes());
+//        Nearby.getMessagesClient(this).publish(mMessage);
+//    }
+//
+//    private void unpublish() {
+//        Log.i(TAG, "Unpublishing.");
+//        if (mMessage != null) {
+//            Nearby.getMessagesClient(this).unpublish(mMessage);
+//            mMessage = null;
+//        }
+//    }
+//
+//    private void subscribe() {
+//        Log.i(TAG, "Subscribing");
+//        Nearby.getMessagesClient(this).subscribe(mMessageListener);
+//    }
+//
+//    private void unsubscribe() {
+//        Log.i(TAG, "Unsubscribing.");
+//        Nearby.getMessagesClient(this).unsubscribe(mMessageListener);
+//    }
+//
+//    @Override
+//    protected void onStart() {
+//        super.onStart();
+//        publish(new String(mMessage.getContent()));
+//        subscribe();
+////
+////        Nearby.getMessagesClient(this).publish(mMessage);
+////        Nearby.getMessagesClient(this).subscribe(mMessageListener);
+//    }
+//
+//    @Override
+//    protected void onStop() {
+//        unpublish();
+//        unsubscribe();
+////        Nearby.getMessagesClient(this).unpublish(mMessage);
+////        Nearby.getMessagesClient(this).unsubscribe(mMessageListener);
+//
+//        super.onStop();
+//    }
+
+    /*
+    Location finding methods
+     */
 
     private void getLocation() {
         if (ActivityCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
@@ -249,7 +397,7 @@ public class MainActivity extends AppCompatActivity {
 //        });
 //        alert.show();
 //    }
-//
+
 //    @RequiresApi(api = Build.VERSION_CODES.M)
 //    public void switchFlashLight(boolean status) {
 //        try {
