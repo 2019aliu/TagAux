@@ -14,7 +14,10 @@ import android.hardware.camera2.CameraManager;
 import android.location.Location;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -35,11 +38,16 @@ import com.google.android.gms.nearby.messages.BleSignal;
 import com.google.android.gms.nearby.messages.Distance;
 import com.google.android.gms.nearby.messages.Message;
 import com.google.android.gms.nearby.messages.MessageListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.net.NetworkInterface;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -86,70 +94,120 @@ public class MainActivity extends AppCompatActivity {
         this.mFlashButton = findViewById(R.id.buttonFlash);
         this.mVibrateButton = findViewById(R.id.buttonVibrate);
 
-        // Generate UUID and get device name, BT address, WIFI MAC address
-        String deviceId = UUID.randomUUID().toString();
-        String deviceName = Build.MODEL;
-        mUserItems.child(deviceId).child("device").setValue(deviceName);
-        String wifimac = getMacAddr();
-        mUserItems.child(deviceId).child("wifiMAC").setValue(wifimac);
-        String btAddr = getBluetoothMacAddress();
-        txtBTWifiInfo.setText(String.format("Bluetooth Address: %s\nWifi MAC address: %s",
-                btAddr, wifimac));
-        mUserItems.child(deviceId).child("btAddress").setValue(btAddr);
-        mUserItems.child(deviceId).child("pending").setValue(true);
-
-        // GPS locating thingy
-        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-
-        locationRequest = LocationRequest.create();
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setInterval(10 * 1000); // 10 seconds
-        locationRequest.setFastestInterval(5 * 1000); // 5 seconds
-
-        new GpsUtils(this).turnGPSOn(new GpsUtils.onGpsListener() {
+        mUserItems.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
-            public void gpsStatus(boolean isGPSEnable) {
-                // turn on GPS
-                isGPS = isGPSEnable;
-            }
-        });
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                // This method is called once with the initial value and again
+                // whenever data at this location is updated.
+                // Generate UUID and get device name, BT address, WIFI MAC address
+                String deviceId = UUID.randomUUID().toString();
+                String deviceName = Build.MODEL;
 
-        locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                if (locationResult == null) {
-                    return;
-                }
-                for (Location location : locationResult.getLocations()) {
-                    if (location != null) {
-                        wayLatitude = location.getLatitude();
-                        wayLongitude = location.getLongitude();
-                        stringBuilder.append(wayLatitude);
-                        stringBuilder.append("-");
-                        stringBuilder.append(wayLongitude);
-                        stringBuilder.append("\n\n");
-                        txtContinueLocation.setText(stringBuilder.toString());
-                        mUserItems.child(deviceId).child("location").setValue(String.format("(%s, %s)", wayLatitude, wayLongitude));
-                        if (!isContinue && mFusedLocationClient != null) {
-                            mFusedLocationClient.removeLocationUpdates(locationCallback);
-                        }
+                // Read from the database
+                HashMap<String, String> deviceIds = new HashMap<>();
+
+                HashMap<String, HashMap<String, Object>> items =
+                        (HashMap<String, HashMap<String, Object>>) dataSnapshot.getValue();
+                // Populate the arraylist with PENDING items
+                for (String itemID : items.keySet()) {
+                    if (!(Boolean) items.get(itemID).get("pending") && items.get(itemID).get("device").equals(deviceName)) {
+                        deviceId = itemID;
                     }
                 }
-            }
-        };
 
-        if (!isGPS) {
-            Toast.makeText(this, "Please turn on GPS", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        isContinue = true;
-        stringBuilder = new StringBuilder();
-        getLocation();
+                Log.d(TAG, deviceId);
+
+                mUserItems.child(deviceId).child("device").setValue(deviceName);
+                String wifimac = getMacAddr();
+                mUserItems.child(deviceId).child("wifiMAC").setValue(wifimac);
+                String btAddr = getBluetoothMacAddress();
+                txtBTWifiInfo.setText(String.format("Bluetooth Address: %s\nWifi MAC address: %s",
+                        btAddr, wifimac));
+                mUserItems.child(deviceId).child("btAddress").setValue(btAddr);
+                mUserItems.child(deviceId).child("pending").setValue(true);
+
+                // GPS locating thingy
+                mFusedLocationClient = LocationServices.getFusedLocationProviderClient(MainActivity.this);
+
+                locationRequest = LocationRequest.create();
+                locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+                locationRequest.setInterval(10 * 1000); // 10 seconds
+                locationRequest.setFastestInterval(5 * 1000); // 5 seconds
+
+                new GpsUtils(MainActivity.this).turnGPSOn(new GpsUtils.onGpsListener() {
+                    @Override
+                    public void gpsStatus(boolean isGPSEnable) {
+                        // turn on GPS
+                        isGPS = isGPSEnable;
+                    }
+                });
+
+                String finalDeviceId = deviceId;
+                locationCallback = new LocationCallback() {
+                    @Override
+                    public void onLocationResult(LocationResult locationResult) {
+                        if (locationResult == null) {
+                            return;
+                        }
+                        for (Location location : locationResult.getLocations()) {
+                            if (location != null) {
+                                wayLatitude = location.getLatitude();
+                                wayLongitude = location.getLongitude();
+                                stringBuilder.append(wayLatitude);
+                                stringBuilder.append("-");
+                                stringBuilder.append(wayLongitude);
+                                stringBuilder.append("\n\n");
+                                txtContinueLocation.setText(stringBuilder.toString());
+                                mUserItems.child(finalDeviceId).child("location").setValue(String.format("(%s, %s)", wayLatitude, wayLongitude));
+                                if (!isContinue && mFusedLocationClient != null) {
+                                    mFusedLocationClient.removeLocationUpdates(locationCallback);
+                                }
+                            }
+                        }
+                    }
+                };
+
+                if (!isGPS) {
+                    Toast.makeText(MainActivity.this, "Please turn on GPS", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                isContinue = true;
+                stringBuilder = new StringBuilder();
+                getLocation();
+            }
+
+            @Override
+            public void onCancelled(DatabaseError error) {
+                // Failed to read value
+                Log.w(TAG, "Failed to read value.", error.toException());
+            }
+        });
 
         mMessageListener = new MessageListener() {
             @Override
             public void onFound(Message message) {
+                String content = new String(message.getContent());
                 Log.d(TAG, "Found message: " + new String(message.getContent()));
+                String[] messageSplit = content.split("\\s+");
+
+                if (messageSplit[0].toLowerCase().equals("vibrate")) {
+                    Log.d(TAG, "Activating vibration");
+                    unsubscribe();
+
+                    // Vibrate the phone
+                    int vibrate_duration = Integer.parseInt(messageSplit[1]);
+                    Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                    // Vibrate for 500 milliseconds
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator.vibrate(VibrationEffect.createOneShot(vibrate_duration, VibrationEffect.DEFAULT_AMPLITUDE));
+                    } else {
+                        //deprecated in API 26
+                        vibrator.vibrate(vibrate_duration);
+                    }
+
+                    // resubscribe to the main app
+                    subscribe();
+                }
             }
 
             @Override
@@ -159,31 +217,6 @@ public class MainActivity extends AppCompatActivity {
         };
 
         mMessage = new Message("Hello World from Tag Aux".getBytes());
-
-//        // to subscribe for messages
-//        mMessageListener = new MessageListener() {
-//            @Override
-//            public void onFound(Message message) {
-//                Log.d(TAG, "Found message: " + new String(message.getContent()));
-//            }
-//
-//            @Override
-//            public void onLost(Message message) {
-//                Log.d(TAG, "Lost message: " + new String(message.getContent()));
-//            }
-//
-//            @Override
-//            public void onBleSignalChanged(final Message message, final BleSignal bleSignal) {
-//                Log.d(TAG, "Message: " + message + " has new BLE signal information: " + bleSignal);
-//            }
-//
-//            @Override
-//            public void onDistanceChanged(final Message message, final Distance distance) {
-//                Log.d(TAG, "Distanced changed, message: " + message + " , new distance: " + distance);
-//            }
-//        };
-//
-//        mMessage = new Message("Hello World from TAG Aux".getBytes());
     }
 
     @Override
@@ -224,54 +257,6 @@ public class MainActivity extends AppCompatActivity {
         Log.i(TAG, "Unsubscribing.");
         Nearby.getMessagesClient(this).unsubscribe(mMessageListener);
     }
-
-//    /*
-//    Connection helper methods
-//     */
-//
-//    private void publish(String message) {
-//        Log.i(TAG, "Publishing message: " + message);
-//        mMessage = new Message(message.getBytes());
-//        Nearby.getMessagesClient(this).publish(mMessage);
-//    }
-//
-//    private void unpublish() {
-//        Log.i(TAG, "Unpublishing.");
-//        if (mMessage != null) {
-//            Nearby.getMessagesClient(this).unpublish(mMessage);
-//            mMessage = null;
-//        }
-//    }
-//
-//    private void subscribe() {
-//        Log.i(TAG, "Subscribing");
-//        Nearby.getMessagesClient(this).subscribe(mMessageListener);
-//    }
-//
-//    private void unsubscribe() {
-//        Log.i(TAG, "Unsubscribing.");
-//        Nearby.getMessagesClient(this).unsubscribe(mMessageListener);
-//    }
-//
-//    @Override
-//    protected void onStart() {
-//        super.onStart();
-//        publish(new String(mMessage.getContent()));
-//        subscribe();
-////
-////        Nearby.getMessagesClient(this).publish(mMessage);
-////        Nearby.getMessagesClient(this).subscribe(mMessageListener);
-//    }
-//
-//    @Override
-//    protected void onStop() {
-//        unpublish();
-//        unsubscribe();
-////        Nearby.getMessagesClient(this).unpublish(mMessage);
-////        Nearby.getMessagesClient(this).unsubscribe(mMessageListener);
-//
-//        super.onStop();
-//    }
 
     /*
     Location finding methods
